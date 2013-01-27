@@ -105,71 +105,129 @@ namespace Battery.Touch.Images
 			Marshal.FreeHGlobal(dataPointer);
 		}
 
-		public UIImage CreateImage (float width, float height)
-		{
-			var rects = new List<RectangleF>();
-			var newRects = new List<RectangleF>();
+		public UIImage CreateImage(float width, float height)
+        {
+            var rects = new RectangleF[_verticalLineSegments.Count, _horizontalLineSegments.Count];
+            var newRects = new RectangleF[_verticalLineSegments.Count, _horizontalLineSegments.Count];
 
-			var width_nostretch = _horizontalLineSegments.Where (p => !p.Stretch).Sum (p => p.Length);
-			var width_stretch = _horizontalLineSegments.Where (p => p.Stretch).Sum (p => p.Length);
-			var height_nostretch = _verticalLineSegments.Where (p => !p.Stretch).Sum (p => p.Length);
-			var height_stretch = _verticalLineSegments.Where (p => p.Stretch).Sum (p => p.Length);
-			var x = 1;
-			var y = 1;
-			var x_position = .0f;
-			var y_position = .0f;
+            var width_nostretch = _horizontalLineSegments.Where(p => !p.Stretch).Sum(p => p.Length);
+            var width_stretch = _horizontalLineSegments.Where(p => p.Stretch).Sum(p => p.Length);
+            var height_nostretch = _verticalLineSegments.Where(p => !p.Stretch).Sum(p => p.Length);
+            var height_stretch = _verticalLineSegments.Where(p => p.Stretch).Sum(p => p.Length);
+            var x = 1;
+            var y = 1;
+            var x_position = .0f;
+            var y_position = .0f;
 
-			RectangleF renderedRect;
+            RectangleF renderedRect;
  			
-			for (var v = 0; v < _verticalLineSegments.Count; v++) 
+            for (var v = 0; v < _verticalLineSegments.Count; v++)
+            {
+                var vv = _verticalLineSegments [v];
+                x = 1;
+                x_position = .0f;
+                for (var h = 0; h < _horizontalLineSegments.Count; h++)
+                {
+                    var hh = _horizontalLineSegments [h];
+
+                    var rect = new RectangleF((float)x, (float)y, (float)hh.Length, (float)vv.Length);
+                    ;
+                    rects [v, h] = rect;
+
+                    renderedRect = new RectangleF();
+
+                    if (hh.Stretch)
+                    {
+                        renderedRect.Width = (float)hh.Length * (float)(width - width_nostretch) / (float)width_stretch;
+                    } else
+                    {
+                        renderedRect.Width = (float)hh.Length;
+                    }
+                    renderedRect.X = x_position;
+
+                    if (vv.Stretch)
+                    {
+                        renderedRect.Height = (float)vv.Length * (float)(height - height_nostretch) / (float)height_stretch;
+                    } else
+                    {
+                        renderedRect.Height = (float)vv.Length;
+                    }
+                    renderedRect.Y = y_position;
+                    newRects [v, h] = renderedRect;
+
+                    x += _horizontalLineSegments [h].Length;
+                    x_position += renderedRect.Width;
+                }
+
+                y_position += renderedRect.Height;
+                y += _verticalLineSegments [v].Length;
+            }
+
+            var size = new SizeF(width, height);
+			
+            UIGraphics.BeginImageContext(size);
+
+            for (int v = 0; v < this._verticalLineSegments.Count; v++)
+            {
+                for (int h = 0; h < this._horizontalLineSegments.Count; h++)
+                {
+                    /*
+					var oldRect = newRects[v, h];
+					var newHRect = newRects[v, h + 1];
+					var newVRect = newRects[v + 1, h];
+*/
+
+                    newRects [v, h].X = (float)Math.Round(newRects [v, h].X);
+                    newRects [v, h].Y = (float)Math.Round(newRects [v, h].Y);
+                    /*
+					newRects[v + 1, h].Y = (float) Math.Round(newRects[v, h].Y + newRects[v, h].Height);
+					newRects[v, h].Width = newRects[v, h + 1].X - newRects[v, h].X;
+					newRects[v, h].Height = newRects[v + 1, h].Y - newRects[v, h].Y;
+*/
+                }
+            }
+            for (int v = 0; v < this._verticalLineSegments.Count ; v++)
+            {
+                for (int h = 0; h < this._horizontalLineSegments.Count; h++)
+                {
+                    if (h == this._horizontalLineSegments.Count - 1)
+                    {
+                        newRects[v, h].Width = width - newRects[v, h].X;
+                    }
+                    else
+                    {
+                        newRects[v, h].Width = newRects[v, h + 1].X - newRects[v, h].X;
+                    }
+
+                    if (v == this._verticalLineSegments.Count - 1)
+                    {
+                        newRects[v, h].Height = height - newRects[v, h].Y;
+                    }
+                    else
+                    {
+                        newRects[v, h].Height = newRects[v + 1, h].Y - newRects[v, h].Y;
+                    }
+                }
+            }
+    
+			for (int v = 0; v < this._verticalLineSegments.Count; v++) 
 			{
-				var vv = _verticalLineSegments [v];
-				x = 1;
-				x_position = .0f;
-				for (var h = 0; h < _horizontalLineSegments.Count; h++) {
-					var hh = _horizontalLineSegments [h];
+				for (int h = 0; h < this._horizontalLineSegments.Count; h++) 
+				{
+					renderedRect = newRects[v, h];
 
-					var rect = new RectangleF((float)x, (float)y, (float) hh.Length, (float) vv.Length);;
-					rects.Add (rect);
+					var rect = rects[v, h];
 
-					renderedRect = new RectangleF();
+					var fillRect = new RectangleF(
+						renderedRect.X,
+					    renderedRect.Y,
+						renderedRect.Width,
+						renderedRect.Height
+					);
 
-					if (hh.Stretch) {
-						renderedRect.Width = (float)hh.Length * (float)(width - width_nostretch) / (float)width_stretch;
-					} else {
-						renderedRect.Width = (float)hh.Length;
-					}
-					renderedRect.X = x_position;
-
-					if (vv.Stretch) {
-						renderedRect.Height = (float)vv.Length * (float) (height - height_nostretch) / (float)height_stretch;
-					} else {
-						renderedRect.Height = (float)vv.Length;
-					}
-					renderedRect.Y = y_position;
-					newRects.Add (renderedRect);
-
-					x += _horizontalLineSegments [h].Length;
-					x_position += renderedRect.Width;
+					var image = UIImage.FromImage(dataImage.WithImageInRect(new RectangleF(rect.X, rect.Y, rect.Width, rect.Height)));
+					image.Draw (fillRect);
 				}
-
-				y_position += renderedRect.Height;
-				y += _verticalLineSegments [v].Length;
-			}
-
-			var size = new SizeF(width, height);
-			
-			UIGraphics.BeginImageContext(size);
-			
-			var rectF = new RectangleF(new Point(0, 0), size);
-
-			for (var p = 0; p < rects.Count; p++) {
-				renderedRect = newRects[p];
-				var rect = rects[p];
-				var fillRect = new RectangleF(Math.Min ((float)Math.Floor(renderedRect.X), size.Width), Math.Min ((float)Math.Floor(renderedRect.Y), size.Height), Math.Min ((float)Math.Ceiling(renderedRect.Width), size.Width), Math.Min ((float)Math.Ceiling(renderedRect.Height), size.Height));
-
-				var image = UIImage.FromImage(dataImage.WithImageInRect(new RectangleF(rect.X, rect.Y, rect.Width, rect.Height)));
-				image.Draw (fillRect);
 			}
 
 			var newImage = UIGraphics.GetImageFromCurrentImageContext();
